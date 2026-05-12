@@ -1,0 +1,171 @@
+.dseg
+PLAYER_BULLET_X:	.byte	1
+PLAYER_BULLET_Y:	.byte	1
+
+.cseg
+PLAYER_BULLET_RESET:
+	sts		PLAYER_BULLET_X, r2
+	sts		PLAYER_BULLET_Y, r2
+	ret
+	
+PLAYER_BULLET_UPDATE:
+	push	r16
+	lds		r16, PLAYER_BULLET_Y
+	tst		r16
+	breq	SHOOT_CHECK
+	inc		r16
+	sts		PLAYER_BULLET_Y, r16
+	rcall	PLAYER_BULLET_COLLISIONS
+
+PLAYER_BULLET_BOUNDS:
+	cpi		r16, 8
+	brlo	UPDATE_EXIT
+	SFX		1
+	rcall	PLAYER_BULLET_RESET
+UPDATE_EXIT:
+	pop		r16
+	ret
+
+SHOOT_CHECK:
+	push	r16
+	rcall	GET_BUTTON
+	sbrs	r19, 0
+	rcall	SHOOT
+	pop		r16
+	rjmp	UPDATE_EXIT
+
+SHOOT:
+	lds		r16, PLAYER_X
+	sts		PLAYER_BULLET_X, r16
+	ldi		r16, 1
+	sts		PLAYER_BULLET_Y, r16
+	rcall	PLAYER_BULLET_COLLISIONS
+	ret
+
+PLAYER_BULLET_COLLISIONS:
+	push	r16
+	push	r17
+	push	r18
+	push	r19
+	lds		r16, PLAYER_BULLET_X
+	lds		r17, PLAYER_BULLET_Y
+	rcall	NORMALIZE_PLAYER_BULLET
+	rcall	CONVERT_TO_BINARY
+
+	rcall	PB_BARRIER_COLLISION
+	rcall	PB_ENEMY_COLLISION
+	rcall	PB_BONUS_COLLISION
+
+PLAYER_BULLET_COLLISIONS_EXIT:
+	pop		r19
+	pop		r18
+	pop		r17
+	pop		r16
+	ret
+
+NORMALIZE_PLAYER_BULLET:
+	clr		r18
+	cpi		r16, 8
+	brlo	NORMALIZE_PLAYER_BULLET_EXIT
+	subi	r16, 8
+	inc		r18
+NORMALIZE_PLAYER_BULLET_EXIT:
+	ret
+
+CONVERT_TO_BINARY: 
+	push	r19
+	ldi		r19, $80
+	tst		r16
+	breq	CONVERT_TO_BINARY_EXIT
+CONVERT_TO_BINARY_LOOP:
+	lsr		r19
+	dec		r16
+	brne	CONVERT_TO_BINARY_LOOP
+CONVERT_TO_BINARY_EXIT:
+	mov		r16, r19 
+	pop		r19
+	ret
+
+PB_BARRIER_COLLISION:
+	push	r16
+	push	r17
+	cpi		r17, 1
+	brne	PB_BARRIER_COLLISION_EXIT
+	load_x	SHIELD
+	add_x	r18
+	ld		r19, X
+	and		r19, r16
+	tst		r19
+	breq	PB_BARRIER_COLLISION_EXIT
+	rcall	PLAYER_BULLET_RESET
+PB_BARRIER_COLLISION_EXIT:
+	pop		r17
+	pop		r16
+	ret
+
+PB_ENEMY_COLLISION:
+	push	r16
+	push	r17
+	ldi		r19, 8
+	lds		r20, ENEMY_ROW
+	sub		r19, r20
+	cp		r17, r19
+	brsh	PB_ENEMY_COLLISION_EXIT
+	ldi		r20, ENEMY_HEIGHT
+	lsr		r20
+	sub		r19, r20
+	cp		r17, r19
+	brlo	PB_ENEMY_COLLISION_EXIT
+	sub		r17, r19
+	lsl		r17
+	ldi		r20, 5
+	load_x	ENEMY
+	add_x	r20
+	sub		XL, r18
+	sub		XL, r17
+	ld		r19, X
+	and		r19, r16
+	tst		r19
+	breq	PB_ENEMY_COLLISION_EXIT
+	ld		r19, X
+	com		r16
+	and		r19, r16
+	st		X, r19
+	SFX		1
+	ldi		r16, 15
+	rcall	INCREASE_POINTS
+	rcall	SET_POINTS_FLAG
+	rcall	PLAYER_BULLET_RESET
+
+PB_ENEMY_COLLISION_EXIT:
+	pop		r17
+	pop		r16
+	ret
+	
+PB_BONUS_COLLISION:
+	push	r16
+	push	r17
+	cpi		r17, 7
+	brne	PB_BONUS_COLLISION_EXIT
+	lds		r18, BONUS_X
+	cp		r16, r18
+	brne	PB_BONUS_COLLISION_EXIT
+	SFX		1
+	ldi		r16, 250
+	rcall	INCREASE_POINTS
+	rcall	SET_POINTS_FLAG
+	call	BONUS_INIT
+PB_BONUS_COLLISION_EXIT:
+	pop		r17
+	pop		r16
+	ret
+
+PLAYER_BULLET_DISPLAY:
+	lds		r17, PLAYER_BULLET_Y
+	tst		r17
+	breq	PLAYER_BULLET_DISPLAY_EXIT
+	lds		r16, PLAYER_BULLET_X
+	ldi		r18, WHITE
+	rcall	VMEM_PRINT
+PLAYER_BULLET_DISPLAY_EXIT:
+	ret

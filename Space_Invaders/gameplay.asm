@@ -1,0 +1,167 @@
+.equ TIMER_PLAYER_LENGTH = 3
+.equ TIMER_ENEMY_LENGTH	= 15
+.equ TIMER_ENEMY_BULLETS_LENGTH = 5
+.equ TIMER_BONUS_LENGTH = 6
+.equ GAMEPLAY_SPEED	= 5
+
+.dseg
+TIMER_PLAYER:			.byte	1
+TIMER_ENEMY:			.byte	1
+TIMER_ENEMY_BULLETS:	.byte	1	
+TIMER_BONUS:			.byte	1
+LIVES:					.byte	1
+
+.cseg
+GAMEPLAY_INIT:
+	rcall	RESET_TIMERS
+	rcall	PLAYER_INIT
+	rcall	PLAYER_BULLET_RESET
+	rcall	SHIELD_INIT
+	rcall	ENEMY_INIT
+	rcall	RESET_ENEMY_BULLETS
+	rcall	BONUS_INIT
+	ret
+
+GAMEPLAY_UPDATE:
+	rcall	PLAYER_UPDATE
+	rcall	PLAYER_BULLET_UPDATE
+	rcall	ENEMY_UPDATE
+	rcall	ENEMY_BULLET_UPDATE
+	rcall	BONUS_UPDATE
+	rcall	UPDATE_TIMERS
+	ret
+
+DISPLAY_GRAPHICS:
+	rcall	ENEMY_BULLETS_DISPLAY
+	rcall	ENEMY_DISPLAY
+
+	lds		r16, STATE
+	cpi		r16, 3
+	breq	DISPLAY_END
+
+	rcall	PLAYER_DISPLAY
+	rcall	PLAYER_BULLET_DISPLAY
+	rcall	SHIELD_DISPLAY
+	rcall	BONUS_DISPLAY
+DISPLAY_END:
+	ret
+
+RESET_TIMERS:
+	ldi		r16, TIMER_PLAYER_LENGTH
+	sts		TIMER_PLAYER, r16
+	sts		TIMER_ENEMY, r2
+	sts		TIMER_BONUS, r2
+	ret
+
+UPDATE_TIMERS:
+	rcall	PLAYER_UPDATE_TIMER
+	rcall	ENEMY_UPDATE_TIMER
+	rcall	BONUS_UPDATE_TIMER
+	ret
+
+PLAYER_UPDATE_TIMER:
+    lds		r16, TIMER_PLAYER        
+    tst		r16                      
+    breq	PLAYER_UPDATE_EXIT       
+    dec		r16                      
+    sts		TIMER_PLAYER, r16        
+PLAYER_UPDATE_EXIT:
+    ret
+
+ENEMY_UPDATE_TIMER:
+	lds		r16, TIMER_ENEMY
+	inc		r16
+	cpi		r16, TIMER_ENEMY_LENGTH
+	brne	ENEMY_UPDATE_TIMER_EXIT
+	clr		r16
+ENEMY_UPDATE_TIMER_EXIT:
+	sts		TIMER_ENEMY, r16
+	ret
+
+BONUS_UPDATE_TIMER:
+	lds		r16, TIMER_BONUS
+	inc		r16
+	cpi		r16, TIMER_BONUS_LENGTH
+	brne	BONUS_UPDATE_TIMER_EXIT
+	clr		r16
+BONUS_UPDATE_TIMER_EXIT:
+	sts		TIMER_BONUS, r16
+	ret
+
+INCREASE_POINTS:
+	ldi		r18, 100
+	ldi		r19, 2
+	rcall	POINTS_SUB
+	rcall	ADD_TO_POINTS
+
+	ldi		r18, 10
+	ldi		r19, 1
+	rcall	POINTS_SUB
+	rcall	ADD_TO_POINTS
+
+	ldi		r18, 1
+	clr		r19
+	rcall	POINTS_SUB
+	rcall	ADD_TO_POINTS
+	ret
+
+POINTS_SUB:
+	clr		r17
+	cp		r16, r18
+	brlo	POINTS_SUB_EXIT
+
+POINTS_SUB_LOOP:
+	sub		r16, r18
+	inc		r17
+	cp		r16, r18
+	brsh	POINTS_SUB_LOOP
+
+POINTS_SUB_EXIT:
+	ret
+
+ADD_TO_POINTS:
+	push	r16
+	push	r19
+
+ADD_TO_POINTS_MEM:
+	load_x	POINTS
+	add_x	r19
+	ld		r20, X
+
+	add		r17, r20
+	cpi		r17, 10
+	brlo	ADD_TO_POINTS_EXIT
+	inc		r19
+	subi	r17, 10
+	st		X, r17
+	ldi		r17, 1
+	rjmp	ADD_TO_POINTS_MEM
+
+ADD_TO_POINTS_EXIT:
+	st		X, r17
+	pop		r19
+	pop		r16
+	ret
+
+GAMEPLAY_DELAY:
+	push	r16
+	push	r17
+	push	r18
+
+	ldi		r18, GAMEPLAY_SPEED
+OUTER_DELAY:
+	ldi		r16, $FF
+INNER_DELAY:
+	ldi		r17, $FF
+INNER_INNER_DELAY:
+	dec		r17
+	brne	INNER_INNER_DELAY
+	dec		r16
+	brne	INNER_DELAY	
+	dec		r18
+	brne	OUTER_DELAY
+
+	pop		r18
+	pop		r17
+	pop		r16
+	ret

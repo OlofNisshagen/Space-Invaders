@@ -1,0 +1,64 @@
+.dseg
+BONUS_X:			.byte	1
+BONUS_DIRECTION:	.byte	1
+
+.cseg
+BONUS_INIT:
+	sts		BONUS_DIRECTION, r2
+	ldi		r16, SCREEN_SIZE
+	sts		BONUS_X, r16
+	ret
+
+BONUS_DISPLAY:
+	lds		r16, BONUS_X
+	cpi		r16, SCREEN_SIZE
+	breq	BONUS_DISPLAY_EXIT
+	ldi		r17, 7
+	ldi		r18, YELLOW
+	rcall	VMEM_PRINT
+BONUS_DISPLAY_EXIT:
+	ret
+
+BONUS_UPDATE:
+	lds		r16, TIMER_BONUS
+	tst		r16
+	brne	BONUS_UPDATE_EXIT
+	lds		r16, ENEMY_ROW
+	tst		r16
+	breq	BONUS_UPDATE_EXIT
+	lds		r16, BONUS_X
+	lds		r17, BONUS_DIRECTION
+	cpi		r16, SCREEN_SIZE
+	breq	BONUS_LAUNCH
+	tst		r17
+	breq	BONUS_LEFT
+	rjmp	BONUS_RIGHT
+
+BONUS_LAUNCH:
+	clr		r16
+	sbrs	r17, 0
+	ldi		r16, 15
+	rjmp	BONUS_UPDATE_EXIT
+
+BONUS_RIGHT:
+	cpi		r16, 15
+	breq	BONUS_BORDER
+	inc		r16
+	rjmp	BONUS_UPDATE_EXIT
+
+BONUS_LEFT:
+	tst		r16
+	breq	BONUS_BORDER
+	dec		r16
+	rjmp	BONUS_UPDATE_EXIT
+
+BONUS_BORDER:
+	ldi		r16, SCREEN_SIZE
+	ldi		r18, 1
+	eor		r17, r18
+	sts		BONUS_DIRECTION, r17
+	rjmp	BONUS_UPDATE_EXIT
+
+BONUS_UPDATE_EXIT:
+	sts		BONUS_X, r16
+	ret
